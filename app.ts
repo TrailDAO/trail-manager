@@ -3,6 +3,7 @@ import { validate } from 'express-jsonschema'
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
 import dotenv from 'dotenv'
 import bodyParser from 'body-parser'
+import randomstring from 'randomstring'
 import CompileSchema from './schemas/CompileSchema'
 
 dotenv.config()
@@ -33,6 +34,17 @@ app.post('/compile', validate({ body: CompileSchema }), async (req, res, next) =
   }
 
   res.sendStatus(200)
+})
+
+app.get('/web3-login-message', async (req, res) => {
+  const nonce = randomstring.generate(7)
+  const message = [
+    'Sign this message to confirm you own this wallet address.',
+    'This action will not cost any gas.\nNonce: ',
+    nonce,
+  ]
+
+  res.status(200).send(message.join(' '))
 })
 
 const port = 3000
