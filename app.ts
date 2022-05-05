@@ -5,11 +5,14 @@ import dotenv from 'dotenv'
 import bodyParser from 'body-parser'
 import randomstring from 'randomstring'
 import Web3 from 'web3'
+import jwt from 'jsonwebtoken'
 import CompileSchema from './schemas/CompileSchema'
 
 const web3 = new Web3(process.env.ALCHEMY_URL || 'ws://localhost:8545')
 
 dotenv.config()
+
+const tokenSecret = process.env.TOKEN_SECRET || 'secret'
 
 const sqsClient = new SQSClient({
   region: process.env.REGION,
@@ -20,11 +23,29 @@ const app = express()
 
 app.use(bodyParser.json())
 
+// eslint-disable-next-line consistent-return
+function auth(req: any, res: any, next: any) {
+  const authHeader = req.headers.authorization
+  const token = authHeader && authHeader.split(' ')[1]
+  if (!token) {
+    return res.sendStatus(401)
+  }
+
+  try {
+    const verified = jwt.verify(token, tokenSecret)
+    req.user = verified.sub
+  } catch (err) {
+    next(err)
+  }
+
+  next()
+}
+
 app.get('/health-check', (req, res) => {
   res.status(200).send('ok')
 })
 
-app.post('/compile', validate({ body: CompileSchema }), async (req, res, next) => {
+app.post('/compile', auth, validate({ body: CompileSchema }), async (req, res, next) => {
   const input = {
     MessageBody: JSON.stringify(req.body),
     QueueUrl: process.env.SQS_QUEUE_URL,
@@ -54,8 +75,12 @@ app.post('/web3-login-verify', async (req, res, next) => {
   const { msg, sig, address } = req.body
   try {
     const recoveredAddress = web3.eth.accounts.recover(msg, sig)
-    if (recoveredAddress === address) {
-      res.status(200).send(recoveredAddress)
+    if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
+      const accessToken = jwt.sign({
+        sub: recoveredAddress,
+      }, tokenSecret)
+
+      res.status(201).send(accessToken)
     } else {
       res.status(400).send('Bad signature')
     }
