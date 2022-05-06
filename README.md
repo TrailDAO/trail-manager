@@ -10,4 +10,4 @@
 Add queue url to .env
 
 ### Adding a circuit template to dynamodb
-ts-node addCircomCircuit.ts Location LocationTemplate.circom  minLatitude,minLongitude,maxLatitude,maxLongitude
+ts-node addCircomCircuit.ts ./exampleCircuits/LocationMetadata.json ./exampleCircuits/LocationTemplate.circom

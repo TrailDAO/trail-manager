@@ -6,17 +6,30 @@ import bodyParser from 'body-parser'
 import randomstring from 'randomstring'
 import Web3 from 'web3'
 import jwt from 'jsonwebtoken'
+import * as dynamoose from 'dynamoose'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { Readable } from 'stream'
+import CircuitModel from './db/Circuit'
 import CompileSchema from './schemas/CompileSchema'
+import CircuitsSchema from './schemas/CircuitsSchema'
 
 const web3 = new Web3(process.env.ALCHEMY_URL || 'ws://localhost:8545')
 
 dotenv.config()
 
+dynamoose.aws.ddb.local(process.env.AWS_ENDPOINT)
+
 const tokenSecret = process.env.TOKEN_SECRET || 'secret'
 
 const sqsClient = new SQSClient({
-  region: process.env.REGION,
+  region: process.env.AWS_REGION,
   endpoint: process.env.AWS_ENDPOINT,
+})
+
+const s3Client = new S3Client({
+  endpoint: process.env.AWS_ENDPOINT,
+  region: process.env.AWS_REGION,
+  forcePathStyle: true,
 })
 
 const app = express()
@@ -40,6 +53,49 @@ function auth(req: any, res: any, next: any) {
 
   next()
 }
+
+app.get('/circuits', async (req, res) => {
+  const circuits = await CircuitModel.scan().exec()
+  res.status(200).json(circuits)
+})
+
+app.post('/circuits', validate({ body: CircuitsSchema }), async (req, res) => {
+  const { limit, lastKey } = req.body
+  const scan = CircuitModel.scan()
+  let documentRetriever
+  if (limit) {
+    documentRetriever = scan.limit(limit)
+  }
+  if (lastKey) {
+    documentRetriever = documentRetriever
+      ? documentRetriever.startAt(lastKey)
+      : scan.startAt(lastKey)
+  }
+
+  const circuits = documentRetriever ? await documentRetriever.exec() : await scan.exec()
+
+  res.status(200).json({
+    circuits,
+    lastKey: circuits.lastKey,
+  })
+})
+
+app.get('/circuits/:id', async (req, res) => {
+  const { id } = req.params
+  const circuit = await CircuitModel.scan('id').eq(id).exec()
+  res.status(200).json(circuit[0])
+})
+
+app.get('/circuits/:id/template', async (req, res) => {
+  const { id } = req.params
+  const circuit = await CircuitModel.scan('id').eq(id).exec()
+  const s3Res = await s3Client.send(new GetObjectCommand({
+    Bucket: circuit[0].bucket,
+    Key: circuit[0].key,
+  }))
+  const stream = s3Res.Body as Readable
+  stream.pipe(res)
+})
 
 app.get('/health-check', (req, res) => {
   res.status(200).send('ok')

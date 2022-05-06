@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const sqsClient = new SQSClient({
-  region: process.env.REGION,
+  region: process.env.AWS_REGION,
   endpoint: process.env.AWS_ENDPOINT,
 })
 

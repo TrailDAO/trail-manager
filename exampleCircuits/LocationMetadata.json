@@ -1,0 +1,5 @@
+{
+    "name": "Location",
+    "description": "Supply a bounding box and prove a fixed location within the box",
+    "requiredVariables": "minLatitude,minLongitude,maxLatitude,maxLongitude"
+}
