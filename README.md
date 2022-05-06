@@ -8,3 +8,6 @@
 ```awslocal sqs create-queue --queue-name compile-requests```
 
 Add queue url to .env
+
+### Adding a circuit template to dynamodb
+ts-node addCircomCircuit.ts Location LocationTemplate.circom  minLatitude,minLongitude,maxLatitude,maxLongitude
