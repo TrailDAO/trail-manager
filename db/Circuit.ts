@@ -10,16 +10,23 @@ const schema = new dynamoose.Schema({
   id: String,
   name: String,
   description: String,
-  requiredVariables: String,
+  requiredVariables: {
+    type: Array,
+    schema: [String],
+  },
+  requiredInputs: Object,
   key: String,
   bucket: String,
+}, {
+  saveUnknown: ['requiredInputs.*'],
 })
 
 class Circuit extends Document {
   id!: string
   name!: string
   description!: string
-  requiredVariables!: string
+  requiredVariables!: string[]
+  requiredInputs!: object
   key!: string
   bucket!: string
 }

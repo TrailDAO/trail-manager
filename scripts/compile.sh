@@ -1,0 +1,1 @@
+circom $1.circom --r1cs --wasm --sym

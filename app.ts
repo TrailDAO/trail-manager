@@ -9,9 +9,12 @@ import jwt from 'jsonwebtoken'
 import * as dynamoose from 'dynamoose'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { Readable } from 'stream'
+import { difference, isEmpty } from 'lodash'
 import CircuitModel from './db/Circuit'
+import CompileModel from './db/Compile'
 import CompileSchema from './schemas/CompileSchema'
 import CircuitsSchema from './schemas/CircuitsSchema'
+import validateInputs from './validateInputs'
 
 const web3 = new Web3(process.env.ALCHEMY_URL || 'ws://localhost:8545')
 
@@ -101,19 +104,69 @@ app.get('/health-check', (req, res) => {
   res.status(200).send('ok')
 })
 
-app.post('/compile', auth, validate({ body: CompileSchema }), async (req, res, next) => {
-  const input = {
-    MessageBody: JSON.stringify(req.body),
-    QueueUrl: process.env.SQS_QUEUE_URL,
+app.post('/compile', auth, validate({ body: CompileSchema }), async (req: any, res, next) => {
+  const { circuitId, variables, inputs } = req.body
+  const circuit = (await CircuitModel.scan('id').eq(circuitId).exec())[0]
+
+  if (!circuit) {
+    res.status(404).send('Circuit not found')
+    return
+  }
+
+  const badInputs = validateInputs(circuit.requiredInputs, inputs)
+  if (!isEmpty(badInputs)) {
+    res.status(400).send(`Bad inputs ${badInputs.join(' ')}`)
+    return
+  }
+
+  const missingVariables = difference(
+    circuit.requiredVariables,
+    Object.getOwnPropertyNames(variables),
+  )
+
+  if (!isEmpty(missingVariables)) {
+    res.status(400).send(`Missing required variables ${missingVariables.join(' ')}`)
+    return
+  }
+
+  const requestId = randomstring.generate(7)
+
+  const request = {
+    requestId,
+    circuitId,
+    variables,
+    inputs,
+    user: req.user,
   }
 
   try {
-    await sqsClient.send(new SendMessageCommand(input))
+    await sqsClient.send(new SendMessageCommand({
+      MessageBody: JSON.stringify(request),
+      QueueUrl: process.env.SQS_QUEUE_URL,
+    }))
   } catch (err) {
     next(err)
   }
 
-  res.sendStatus(200)
+  res.status(200).send(requestId)
+})
+
+app.get('/compile/:id', auth, async (req, res) => {
+  // TODO: limit scan to user
+  const { id } = req.params
+  const compile = await CompileModel.scan('id').eq(id).exec()
+  if (!compile) {
+    res.sendStatus(400)
+  }
+  res.status(200).json(compile[0])
+})
+
+app.get('/compile', auth, async (req, res) => {
+  // TODO: get all compiles for a user
+})
+
+app.get('/compile/:id/contract', auth, async (req, res) => {
+  // TODO: get compiled contract
 })
 
 app.get('/web3-login-message', async (req, res) => {

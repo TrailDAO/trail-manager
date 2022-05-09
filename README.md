@@ -10,4 +10,7 @@
 Add queue url to .env
 
 ### Adding a circuit template to dynamodb
-ts-node addCircomCircuit.ts ./exampleCircuits/LocationMetadata.json ./exampleCircuits/LocationTemplate.circom
+ts-node addCircomCircuit.ts ./circuits/LocationMetadata.json ./circuits/LocationTemplate.circom
+
+### Running queue consumer
+ts-node queueConsumer.ts

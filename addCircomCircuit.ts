@@ -8,7 +8,7 @@ import CircuitModel from './db/Circuit'
 dotenv.config()
 
 dynamoose.aws.sdk.config.update({
-  region: 'us-east-1',
+  region: process.env.AWS_REGION,
 })
 
 dynamoose.aws.ddb.local(process.env.AWS_ENDPOINT)
@@ -28,8 +28,10 @@ async function main() {
     const circuitMetadata = JSON.parse(readFileSync(args[0]).toString())
     const template = readFileSync(args[1])
 
-    const { name, description, requiredVariables } = circuitMetadata
-    console.log(`'${name}' '${description}' '${requiredVariables}'`)
+    const {
+      name, description, requiredVariables, requiredInputs,
+    } = circuitMetadata
+    console.log(`'${name}' '${description}' '${requiredVariables}' '${JSON.stringify(requiredInputs)}'`)
 
     const bucket = `${id}-${name.toLowerCase()}`
     const key = `${name}.circom`
@@ -54,8 +56,12 @@ async function main() {
       name,
       bucket,
       description,
+      requiredInputs,
       requiredVariables,
     })
+
+    console.log(newCircuit.requiredInputs)
+
     console.log('Saving circuit')
     await newCircuit.save()
   } catch (err) {

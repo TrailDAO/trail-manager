@@ -3,23 +3,17 @@ import { JSONSchema4 } from 'json-schema'
 const CompileSchema: JSONSchema4 = {
   type: 'object',
   properties: {
-    name: {
+    circuitId: {
       type: 'string',
     },
-    minLongitude: {
-      type: 'string',
+    variables: {
+      type: 'object',
     },
-    minLatitude: {
-      type: 'string',
-    },
-    maxLongitude: {
-      type: 'string',
-    },
-    maxLatitude: {
-      type: 'string',
+    inputs: {
+      type: 'object',
     },
   },
-  required: ['name', 'minLongitude', 'minLatitude', 'maxLongitude', 'maxLatitude'],
+  required: ['circuitId', 'variables', 'inputs'],
 }
 
 export default CompileSchema

@@ -1,6 +1,6 @@
 pragma circom 2.0.0;
 
-include "node_modules/circomlib/circuits/comparators.circom";
+include "../../node_modules/circomlib/circuits/comparators.circom";
 
 // Utility functions for location based circuits
 // Based on https://github.com/zkMaps/zkMaps 
