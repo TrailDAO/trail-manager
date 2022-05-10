@@ -1,7 +1,11 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+  CreateBucketCommand, GetObjectCommand, PutObjectCommand, S3Client,
+} from '@aws-sdk/client-s3'
 import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs'
 import dotenv from 'dotenv'
-import { existsSync, mkdirSync, writeFileSync } from 'fs'
+import {
+  existsSync, mkdirSync, readFileSync, writeFileSync,
+} from 'fs'
 import { execFileSync } from 'child_process'
 import randomstring from 'randomstring'
 import Mustache from 'mustache'
@@ -51,13 +55,11 @@ const writeExecBuffer = async (output: Buffer, tempDir: string, outputName: stri
 
 // add in an array here for parameters
 const execZkStep = (stepName: string, args: string[], cwd: string) => {
-  console.log(stepName)
   writeExecBuffer(execFileSync(
     `${process.cwd()}/scripts/${stepName}.sh`,
     args,
     { cwd },
   ), cwd, `${stepName}_output`)
-  console.log('done')
 }
 
 async function main() {
@@ -100,11 +102,16 @@ async function main() {
         throw new Error(`Bad inputs ${badInputs.join(' ')}`)
       }
 
-      // Create compile in db with status
+      const bucket = `${requestId}-compile`
+      await s3Client.send(new CreateBucketCommand({
+        Bucket: bucket,
+      }))
+
       const newCompile = new CompileModel({
         id: requestId,
         user,
         inputs,
+        bucket,
         circuitId,
         variables,
         status: 'Received',
@@ -151,6 +158,19 @@ async function main() {
         execZkStep('create_contract', [circuit.name], tempDir)
 
         // TODO: Save output streams and essential outputs
+        const contract = readFileSync(path.join(tempDir, 'Verifier.sol'))
+
+        await s3Client.send(new PutObjectCommand({
+          Key: 'Verifier.sol',
+          Bucket: bucket,
+          Body: contract,
+        }))
+
+        newCompile.keys = {
+          contract: 'Verifier.sol',
+          abi: '',
+          bytecode: '',
+        }
 
         newCompile.status = 'Ready for Deployment'
         newCompile.save()

@@ -16,14 +16,25 @@ const schema = new dynamoose.Schema({
   circuitId: String,
   variables: Object,
   bucket: String,
-  key: String,
+  keys: {
+    type: Object,
+    schema: {
+      contract: String,
+      abi: String,
+      bytecode: String,
+    },
+  },
   error: String,
   inputs: Object,
-  additionalKeys: Object,
-  deployments: Object,
 }, {
-  saveUnknown: ['inputs.*', 'variables.*', 'additionalKeys.*', 'deployments.*'],
+  saveUnknown: ['inputs.*', 'variables.*', 'keys.*'],
 })
+
+interface CompileKeys {
+  contract: string
+  abi: string
+  bytecode: string
+}
 
 class Compile extends Document {
   id!: string
@@ -31,12 +42,10 @@ class Compile extends Document {
   user!: string
   circuitId!: string
   variables?: Object
-  key!: string
+  keys?: CompileKeys
   bucket!: string
   error?: string
   inputs?: Object
-  additionalKeys?: Object
-  deployments?: Object
 }
 
 const CompileModel = dynamoose.model<Compile>('Compile', schema)

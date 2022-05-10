@@ -151,22 +151,56 @@ app.post('/compile', auth, validate({ body: CompileSchema }), async (req: any, r
   res.status(200).send(requestId)
 })
 
-app.get('/compile/:id', auth, async (req, res) => {
-  // TODO: limit scan to user
+app.get('/compile/:id', auth, async (req: any, res) => {
   const { id } = req.params
-  const compile = await CompileModel.scan('id').eq(id).exec()
-  if (!compile) {
-    res.sendStatus(400)
+  const compile = await CompileModel.scan('id').eq(id)
+    .and()
+    .where('user')
+    .eq(req.user)
+    .exec()
+  if (!compile[0]) {
+    res.status(404).send('Not found')
   }
   res.status(200).json(compile[0])
 })
 
-app.get('/compile', auth, async (req, res) => {
-  // TODO: get all compiles for a user
+app.get('/compile', auth, async (req: any, res) => {
+  const compile = await CompileModel.scan('user').eq(req.user).exec()
+  res.status(200).json(compile)
 })
 
-app.get('/compile/:id/contract', auth, async (req, res) => {
-  // TODO: get compiled contract
+app.get('/compile/:id/:keyType', auth, async (req: any, res) => {
+  const { id, keyType } = req.params
+  const compile = (await CompileModel.scan('id').eq(id)
+    .and()
+    .where('user')
+    .eq(req.user)
+    .exec())[0]
+
+  if (!compile) {
+    res.status(404).send('Not found')
+  }
+
+  try {
+    if (!compile.keys) {
+      throw new Error('Keys undefined')
+    }
+
+    let key
+    if (keyType === 'contract') key = compile.keys.contract
+    else if (keyType === 'abi') key = compile.keys.abi
+    else key = compile.keys.bytecode
+
+    const s3Res = await s3Client.send(new GetObjectCommand({
+      Bucket: compile.bucket,
+      Key: key,
+    }))
+    const stream = s3Res.Body as Readable
+    stream.pipe(res)
+  } catch (err) {
+    console.log(err)
+    res.status(404).send('Contract source not found')
+  }
 })
 
 app.get('/web3-login-message', async (req, res) => {
