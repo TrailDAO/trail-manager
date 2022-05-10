@@ -7,6 +7,7 @@ import {
   existsSync, mkdirSync, readFileSync, writeFileSync,
 } from 'fs'
 import { execFileSync } from 'child_process'
+import { promisify } from 'util'
 import randomstring from 'randomstring'
 import Mustache from 'mustache'
 import path from 'path'
@@ -17,6 +18,8 @@ import CompileModel from './db/Compile'
 import validateInputs from './validateInputs'
 
 dotenv.config()
+
+const solc = require('solc')
 
 const sqsClient = new SQSClient({
   region: process.env.AWS_REGION,
@@ -102,7 +105,7 @@ async function main() {
         throw new Error(`Bad inputs ${badInputs.join(' ')}`)
       }
 
-      const bucket = `${requestId}-compile`
+      const bucket = `${requestId}-compile`.toLowerCase()
       await s3Client.send(new CreateBucketCommand({
         Bucket: bucket,
       }))
@@ -160,16 +163,52 @@ async function main() {
         // TODO: Save output streams and essential outputs
         const contract = readFileSync(path.join(tempDir, 'Verifier.sol'))
 
+        const solcInput = {
+          language: 'Solidity',
+          sources: {
+            'Verifier.sol': {
+              content: contract.toString(),
+            },
+          },
+          settings: {
+            outputSelection: {
+              '*': {
+                '*': ['*'],
+              },
+            },
+          },
+        }
+
+        const loadRemoteVersion = promisify(solc.loadRemoteVersion)
+        const solcVer = await loadRemoteVersion('v0.6.11+commit.5ef660b1')
+
+        const solcOutput = JSON.parse(solcVer.compile(JSON.stringify(solcInput)))
+
+        const abi = JSON.stringify(solcOutput.contracts['Verifier.sol'].Verifier.abi)
+        const bytecode = solcOutput.contracts['Verifier.sol'].Verifier.evm.bytecode.object
+
         await s3Client.send(new PutObjectCommand({
           Key: 'Verifier.sol',
           Bucket: bucket,
           Body: contract,
         }))
 
+        await s3Client.send(new PutObjectCommand({
+          Key: 'bytecode',
+          Bucket: bucket,
+          Body: bytecode,
+        }))
+
+        await s3Client.send(new PutObjectCommand({
+          Key: 'abi',
+          Bucket: bucket,
+          Body: abi,
+        }))
+
         newCompile.keys = {
           contract: 'Verifier.sol',
-          abi: '',
-          bytecode: '',
+          bytecode: 'bytecode',
+          abi: 'abi',
         }
 
         newCompile.status = 'Ready for Deployment'
@@ -177,6 +216,8 @@ async function main() {
       } catch (err) {
         console.log(err)
       }
+    } else {
+      console.log('Nothing on the queue, exiting')
     }
   } catch (err) {
     console.log(err)
