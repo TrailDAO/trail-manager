@@ -10,7 +10,7 @@ const schema = new dynamoose.Schema({
   id: String,
   status: {
     type: String,
-    enum: ['Received', 'Processing', 'Ready for Deployment', 'Error'],
+    enum: ['Received', 'Processing', 'Ready for Deployment', 'Deployed', 'Error'],
   },
   user: String,
   circuitId: String,
@@ -24,6 +24,17 @@ const schema = new dynamoose.Schema({
       bytecode: String,
     },
   },
+  deployments: {
+    type: Array,
+    schema: [{
+      type: Object,
+      schema: {
+        transactionHash: String,
+        contractAddress: String,
+        chainId: Number,
+      },
+    }],
+  },
   error: String,
   inputs: Object,
 }, {
@@ -36,6 +47,12 @@ interface CompileKeys {
   bytecode: string
 }
 
+interface Deployment {
+  transactionHash: string,
+  contractAddress: string,
+  chainId: number
+}
+
 class Compile extends Document {
   id!: string
   status!: string
@@ -46,6 +63,7 @@ class Compile extends Document {
   bucket!: string
   error?: string
   inputs?: Object
+  deployments?: Deployment[]
 }
 
 const CompileModel = dynamoose.model<Compile>('Compile', schema)

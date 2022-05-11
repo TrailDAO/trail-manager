@@ -16,6 +16,7 @@ import CompileModel from './db/Compile'
 import CompileSchema from './schemas/CompileSchema'
 import CircuitsSchema from './schemas/CircuitsSchema'
 import validateInputs from './validateInputs'
+import DeploymentSchema from './schemas/DeploymentSchema'
 
 const web3 = new Web3(process.env.ALCHEMY_URL || 'ws://localhost:8545')
 
@@ -153,6 +154,11 @@ app.post('/compile', auth, validate({ body: CompileSchema }), async (req: any, r
   res.status(200).send(requestId)
 })
 
+app.get('/compile', auth, async (req: any, res) => {
+  const compile = await CompileModel.scan('user').eq(req.user).exec()
+  res.status(200).json(compile)
+})
+
 app.get('/compile/:id', auth, async (req: any, res) => {
   const { id } = req.params
   const compile = await CompileModel.scan('id').eq(id)
@@ -166,9 +172,27 @@ app.get('/compile/:id', auth, async (req: any, res) => {
   res.status(200).json(compile[0])
 })
 
-app.get('/compile', auth, async (req: any, res) => {
-  const compile = await CompileModel.scan('user').eq(req.user).exec()
-  res.status(200).json(compile)
+app.post('/compile/:id/deploy', auth, validate({ body: DeploymentSchema }), async (req: any, res) => {
+  const deployment = req.body
+
+  const { id } = req.params
+  const compile = (await CompileModel.scan('id').eq(id)
+    .and()
+    .where('user')
+    .eq(req.user)
+    .exec())[0]
+  if (!compile) {
+    res.status(404).send('Not found')
+  }
+
+  compile.status = 'Deployed'
+  if (!compile.deployments) {
+    compile.deployments = [deployment]
+  } else {
+    compile.deployments.push(deployment)
+  }
+  compile.save()
+  res.sendStatus(200)
 })
 
 app.get('/compile/:id/:keyType', auth, async (req: any, res) => {
