@@ -6,6 +6,7 @@ import bodyParser from 'body-parser'
 import randomstring from 'randomstring'
 import Web3 from 'web3'
 import jwt from 'jsonwebtoken'
+import cors from 'cors'
 import * as dynamoose from 'dynamoose'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { Readable } from 'stream'
@@ -37,6 +38,7 @@ const s3Client = new S3Client({
 
 const app = express()
 
+app.use(cors())
 app.use(bodyParser.json())
 
 // eslint-disable-next-line consistent-return
