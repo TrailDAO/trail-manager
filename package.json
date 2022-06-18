@@ -1,7 +1,7 @@
 {
-  "name": "zk-saas",
+  "name": "trail-manager",
   "version": "0.0.1",
-  "description": "Backend for webapp responsible for creating and managing zero knowledge proof deployments",
+  "description": "Backend for TrailMix webapp responsible for creating and managing trail zero knowledge proof deployments",
   "license": "MIT",
   "scripts": {
     "start": "nodemon app.ts"
