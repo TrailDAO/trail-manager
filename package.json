@@ -4,7 +4,7 @@
   "description": "Backend for TrailMix webapp responsible for creating and managing trail zero knowledge proof deployments",
   "license": "MIT",
   "scripts": {
-    "start": "nodemon app.ts"
+    "start": "nodemon src/app.ts"
   },
   "devDependencies": {
     "@types/cors": "^2.8.12",

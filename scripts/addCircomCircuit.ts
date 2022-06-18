@@ -3,7 +3,7 @@ import dotenv from 'dotenv'
 import { randomUUID } from 'crypto'
 import { S3Client, PutObjectCommand, CreateBucketCommand } from '@aws-sdk/client-s3'
 import { readFileSync } from 'fs'
-import CircuitModel from './db/Circuit'
+import CircuitModel from '../src/db/Circuit'
 
 dotenv.config()
 

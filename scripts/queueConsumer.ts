@@ -13,9 +13,9 @@ import Mustache from 'mustache'
 import path from 'path'
 import { Readable } from 'stream'
 import { difference, isEmpty } from 'lodash'
-import CircuitModel from './db/Circuit'
-import CompileModel from './db/Compile'
-import validateInputs from './validateInputs'
+import CircuitModel from '../src/db/Circuit'
+import CompileModel from '../src/db/Compile'
+import validateInputs from '../src/validateInputs'
 
 dotenv.config()
 
