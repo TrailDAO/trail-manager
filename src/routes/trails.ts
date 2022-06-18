@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { validate } from 'express-jsonschema'
 import { randomUUID } from 'crypto'
+import { orderByDistance, getDistance } from 'geolib'
 import validationErrorHandler from '../validationErrorHandler'
 import TrailModel from '../db/Trail'
 import TrailSchema from '../schemas/TrailSchema'
@@ -8,10 +9,29 @@ import TrailSchema from '../schemas/TrailSchema'
 const trailsRouter = Router()
 
 trailsRouter.get('/trails', async (req, res) => {
-  const { limit } = req.query
-  const scan = TrailModel.scan().limit(Number(limit)).exec()
+  const { limit, lastKey } = req.query
+
+  const scan = TrailModel.scan()
+  let documentRetriever
+
+  if (limit) {
+    documentRetriever = scan.limit(Number(limit))
+  }
+
+  if (lastKey) {
+    const ref = {
+      id: lastKey,
+    }
+    documentRetriever = documentRetriever
+      ? documentRetriever.startAt(ref)
+      : scan.startAt(ref)
+  }
+
+  const trails = documentRetriever ? await documentRetriever.exec() : await scan.exec()
+
   res.status(200).json({
-    scan,
+    trails,
+    lastKey: trails.lastKey,
   })
 })
 
@@ -78,13 +98,31 @@ trailsRouter.post(
   },
 )
 
-// get a specific trail
-trailsRouter.get('/trails/:id', async (req, res) => {
-  const { id } = req.params
-  const trail = await TrailModel.scan('id').eq(id).exec()
-  res.status(200).json(trail)
+trailsRouter.get('/trails/search', async (req, res) => {
+  const { latitude, longitude, distanceMax } = req.query
+
+  const referencePoint = {
+    latitude: latitude!.toString(),
+    longitude: longitude!.toString(),
+  }
+
+  const trails = await TrailModel.scan().exec()
+
+  res.status(200).send(
+    orderByDistance(referencePoint, trails).filter(
+      (sortedTrail) => getDistance(sortedTrail, referencePoint) <= Number(distanceMax),
+    ),
+  )
 })
 
-// TODO: search
+trailsRouter.get('/trails/:id', async (req, res) => {
+  const { id } = req.params
+  const trail = (await TrailModel.scan('id').eq(id).exec())[0]
+  if (trail) {
+    res.status(200).json(trail)
+  } else {
+    res.sendStatus(404)
+  }
+})
 
 export default trailsRouter
