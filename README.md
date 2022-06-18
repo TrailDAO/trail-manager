@@ -1,4 +1,4 @@
-# Zk Proofs as a Service
+# Trail Manager
 
 ## Running locally
 ```SERVICES="dynamodb,s3,sqs" localstack start```
